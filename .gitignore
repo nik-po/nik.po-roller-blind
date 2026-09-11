@@ -1,0 +1,21 @@
+# ESPHome secrets - never commit!
+firmware/secrets.yaml
+
+# ESPHome build artifacts
+firmware/.esphome/
+
+# macOS
+.DS_Store
+
+# Claude Code
+.claude/
+
+# Raw photos and video from the build.
+# Deliberately NOT committed:
+#   - most of these carry GPS coordinates in their EXIF, i.e. a home address
+#   - the folder is ~429 MB and one PSD exceeds GitHub's 100 MB file limit
+# Upload publication photos straight to MakerWorld instead, with location
+# metadata stripped first.
+media/
+*.psd
+*.MOV

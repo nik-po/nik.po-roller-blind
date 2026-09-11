@@ -1,0 +1,859 @@
+===============================================================================
+  SMART ROLLER BLIND  -  Assembly & Setup Instructions
+  ESP32-C3 + TB6612FNG + JGY-370  |  Home Assistant ready  |  100% local
+===============================================================================
+
+If you have never flashed a microcontroller before, don't worry. You plug a
+board into your computer, click a button, and wait two minutes. You cannot
+break the board by flashing it, and if anything goes wrong you simply flash
+it again. Take your time and read as you go.
+
+
+-------------------------------------------------------------------------------
+  CONTENTS
+-------------------------------------------------------------------------------
+
+  1. What is in this download
+  2. Parts and tools you need
+  3. Flash the firmware FIRST (before soldering)
+     3.1  Find your folder in the terminal
+     3.2  Install ESPHome  (Windows)
+     3.3  Install ESPHome  (macOS)
+     3.4  Alternative: use Home Assistant instead
+  4. Generate your own security keys  ** REQUIRED **
+  5. Flash the board
+  6. First power-on: connecting to your WiFi
+  7. Finding your blind (and checking it works)
+  8. Wiring and soldering
+  9. Calibration
+ 10. Everyday use
+ 11. Updating later
+ 12. Troubleshooting
+
+
+-------------------------------------------------------------------------------
+  1. WHAT IS IN THIS DOWNLOAD
+-------------------------------------------------------------------------------
+
+  roller-blind/
+    |
+    +-- INSTRUCTIONS.txt      <- this file
+    +-- roller-blind.yaml     <- the firmware configuration
+    +-- wiring-diagram.svg    <- soldering diagram (open in any browser)
+    +-- www/
+          +-- custom.css      <- the built-in web interface
+          +-- custom.js
+
+  Keep this folder structure exactly as it is. The "www" folder must stay
+  next to roller-blind.yaml, or the web interface will not be included.
+
+  Open wiring-diagram.svg by dragging it into a browser window. It prints
+  well on A4 if you want it on the bench next to you.
+
+
+-------------------------------------------------------------------------------
+  2. PARTS AND TOOLS YOU NEED
+-------------------------------------------------------------------------------
+
+  ELECTRONICS                                              approx. price
+  ---------------------------------------------------------------------
+  ESP32-C3 SuperMini                                            $2.00
+  TB6612FNG motor driver board                                  $1.50
+  JGY-370 12V 40RPM worm gear motor                             $8.00
+  Mini-360 buck converter                                       $0.50
+  DC jack, 5.5 x 2.1 mm                                         $0.50
+  2 x tactile push buttons                                      $0.20
+  12V power adapter, 1A or more                                 $3.00
+  Silicone wire 26AWG + heat shrink                             $2.00
+  ---------------------------------------------------------------------
+  TOTAL, per blind                                        under $20.00
+
+  TOOLS
+  ---------------------------------------------------------------------
+  Soldering iron         You will solder wires to pin headers and module
+                         pads. Nothing microscopic, but this is not a
+                         solderless kit. Intermediate skill assumed.
+
+  Multimeter             MANDATORY. You need it in section 8 to set the
+                         buck converter voltage. Skipping this is the
+                         most common way to destroy the ESP32 board.
+
+  3D printer             For the enclosure and drive gear, or use a
+                         printing service.
+
+  USB-C data cable       See the warning in section 3.
+
+
+-------------------------------------------------------------------------------
+  3. FLASH THE FIRMWARE FIRST (BEFORE SOLDERING)
+-------------------------------------------------------------------------------
+
+  *** Do this while the ESP32 board is still bare. ***
+
+  It is far easier to reach the USB port and the BOOT button now than after
+  everything is wired into the enclosure. After this first flash, all future
+  updates happen over WiFi and you will never need the cable again.
+
+
+  >>> TWO THINGS THAT TRIP UP ALMOST EVERYONE <<<
+
+  (1) YOUR USB CABLE MUST CARRY DATA.
+      Many USB-C cables - especially ones that came with phones, power
+      banks or headphones - are charge-only. They have no data wires
+      inside, so your computer will never see the board no matter what
+      you do. If the board does not show up, TRY A DIFFERENT CABLE FIRST
+      before assuming anything is broken.
+
+  (2) THE ESP32 ONLY WORKS ON 2.4 GHz WIFI.
+      It cannot see 5 GHz networks at all. This is a limitation of the
+      chip, not a bug. If your router shows one merged network name for
+      both bands, that is usually fine. If you have separate names like
+      "MyWiFi" and "MyWiFi_5G", you must use the one WITHOUT 5G.
+
+  You do NOT need to install any drivers. The ESP32-C3 has USB built into
+  the chip, so Windows and macOS both recognise it on their own.
+
+
+  3.1  FIND YOUR FOLDER IN THE TERMINAL - READ THIS FIRST
+  ---------------------------------------------------------------------
+
+  A terminal (called PowerShell on Windows) is just a way to type
+  commands instead of clicking icons. Every command in this guide only
+  works if the terminal is "standing inside" this exact folder - the
+  one containing roller-blind.yaml. If it isn't, the computer has no
+  idea what file you mean, and every command below will fail.
+
+  Unzip this download somewhere easy to find, like your Desktop, and
+  don't rename the "roller-blind" folder or move files out of it.
+
+  OPENING A TERMINAL DIRECTLY INSIDE THE FOLDER
+
+  Windows - open the folder in File Explorer, then right-click an
+  empty spot inside it (not on a file):
+    - If you see "Open in Terminal", click it.
+    - If not, hold Shift and right-click instead, then choose
+      "Open PowerShell window here".
+
+  macOS - Finder has no equivalent right-click option. Open Terminal
+  from Spotlight (Cmd+Space, type "Terminal", press Enter), then use
+  the trick below to get into the folder.
+
+  THE TRICK THAT ALWAYS WORKS, ON EITHER SYSTEM
+
+  If the option above isn't there, or you open a terminal some other
+  way, this gets you into the right folder every time:
+
+    1. Open a terminal any way you can (Windows: search "PowerShell"
+       in the Start menu; macOS: Spotlight -> "Terminal").
+    2. Type: cd   (the letters c and d, then one space - don't press
+       Enter yet).
+    3. Drag the "roller-blind" folder from File Explorer or Finder
+       straight into the terminal window. Its full path is typed in
+       for you automatically.
+    4. Press Enter.
+
+  CHECK YOU ARE ACTUALLY IN THE RIGHT PLACE
+
+  Run this, then look for roller-blind.yaml in what it prints:
+
+      Windows:  dir
+      macOS:    ls
+
+  Not there? You're somewhere else on the computer - repeat the steps
+  above.
+
+  >>> YOU WILL NEED TO DO THIS AGAIN LATER <<<
+
+  This only lasts as long as the terminal window stays open. Every time
+  you close it and open a new one - including weeks from now, when
+  updating the firmware in section 11 - you start from nowhere again.
+  Before typing any command from this guide, come back to this section
+  and get into the folder first.
+
+
+  HOW THE MULTI-LINE COMMANDS IN THIS GUIDE WORK
+
+  Several steps below show two or three lines to run, one under the
+  other - for example the three lines in section 3.2. You do not need
+  to paste them one at a time: select the whole block and paste it in
+  one go. Each line still runs as its own separate command, in order -
+  pasting them together is just faster typing, nothing more.
+
+  Most terminals run every line the instant they see it, one after
+  another, with no extra key press. Some don't act until you press
+  Enter once yourself - if you paste a block and nothing seems to
+  happen, that's why; just press Enter and all of it runs.
+
+  The one thing to expect either way: if a line prints something back
+  (like the key-generation commands in section 4), that output appears
+  on its own line right after it, before the next command runs. That is
+  normal - just match each result to the command above it.
+
+
+  3.2  INSTALL ESPHOME  (WINDOWS)
+  ---------------------------------------------------------------------
+
+  You need Python 3.11 or newer. Check by opening PowerShell and typing:
+
+      py --version
+
+  If that fails or shows an older version, download Python from
+  python.org/downloads and run the installer. On the very first screen,
+  TICK THE BOX "Add python.exe to PATH". This matters - if you miss it,
+  none of the commands below will work.
+
+  Make sure your terminal is inside the roller-blind folder (section
+  3.1 above), then run:
+
+      py -m venv esphome-env
+      esphome-env\Scripts\activate
+      pip install esphome
+
+  This installs ESPHome into its own private folder so it cannot
+  interfere with anything else on your computer.
+
+  You will know it worked when your prompt starts showing (esphome-env).
+  If you close the window, you'll need section 3.1 and then the
+  "activate" line again next time.
+
+
+  3.3  INSTALL ESPHOME  (macOS)
+  ---------------------------------------------------------------------
+
+  You need Python 3.11 or newer. Check by opening Terminal and typing:
+
+      python3 --version
+
+  If that fails or shows an older version, download Python from
+  python.org/downloads and install it.
+
+  Make sure your terminal is inside the roller-blind folder (section
+  3.1 above), then run:
+
+      python3 -m venv esphome-env
+      source esphome-env/bin/activate
+      pip install esphome
+
+  You will know it worked when your prompt starts showing (esphome-env).
+  If you close the window, you'll need section 3.1 and then the
+  "source" line again next time.
+
+
+  3.4  ALTERNATIVE: USE HOME ASSISTANT INSTEAD
+  ---------------------------------------------------------------------
+
+  If you already run Home Assistant, you can skip installing anything:
+
+    1. Settings -> Add-ons -> Add-on Store -> install "ESPHome Builder".
+       Turn on "Show in sidebar".
+    2. Open ESPHome from the sidebar, click New Device -> Continue, then
+       "Skip this step" when it offers to configure WiFi.
+    3. Click Edit on the new device and paste in the entire contents of
+       roller-blind.yaml.
+    4. Upload the "www" folder into your ESPHome config directory using
+       the File Editor or Samba add-on, so that "www" sits next to your
+       .yaml files.
+    5. Continue with section 4 below - the key generation still applies,
+       except that ESPHome may have already filled in an encryption key
+       for you. If it did, that key is already unique to you and you can
+       leave it alone.
+
+
+-------------------------------------------------------------------------------
+  4. GENERATE YOUR OWN SECURITY KEYS   ** REQUIRED **
+-------------------------------------------------------------------------------
+
+  Open roller-blind.yaml in any plain text editor (Notepad, TextEdit,
+  VS Code - anything). You will find two placeholder lines marked
+  "REPLACE ME". You must replace both before flashing.
+
+  Why this is not optional:
+
+    - The encryption key protects the connection between your blind and
+      Home Assistant.
+    - The OTA password protects wireless firmware updates.
+
+  These files are downloaded by everybody who builds this project. If we
+  shipped working keys here, every blind in the world would share the
+  same ones - and anyone on your network could take over your device.
+  That is why they are placeholders instead.
+
+  The firmware will REFUSE TO BUILD until you replace the encryption key,
+  with an error pointing at the exact line. That is intentional.
+
+
+  GENERATE THE TWO VALUES
+  ---------------------------------------------------------------------
+
+  In the same terminal window where you installed ESPHome. You can
+  paste both lines together - see "How the multi-line commands in this
+  guide work" in section 3.1 if you skipped it. Pasted together, two
+  results print one after the other: the first is your encryption key,
+  the second your OTA password.
+
+  Windows:
+      py -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+      py -c "import secrets; print(secrets.token_hex(16))"
+
+  macOS:
+      python3 -c "import secrets,base64; print(base64.b64encode(secrets.token_bytes(32)).decode())"
+      python3 -c "import secrets; print(secrets.token_hex(16))"
+
+  macOS users can also simply run:
+      openssl rand -base64 32
+      openssl rand -hex 16
+
+  The first command prints your encryption key. It looks like this
+  (yours will be different - never use this one):
+
+      a5pcHmDVPAZIOTL8ZG9XmP+l7GIkCYyrh5aoLojlxcQ=
+
+  The second prints your OTA password, like:
+
+      1d24ae599ac00fa868bcd1cedaeadb47
+
+
+  PUT THEM IN THE FILE
+  ---------------------------------------------------------------------
+
+  In roller-blind.yaml, change:
+
+      api:
+        encryption:
+          key: "REPLACE-WITH-YOUR-OWN-GENERATED-KEY"
+
+  to your first generated value, keeping the quotes:
+
+      api:
+        encryption:
+          key: "a5pcHmDVPAZIOTL8ZG9XmP+l7GIkCYyrh5aoLojlxcQ="
+
+  And change:
+
+      ota:
+        - platform: esphome
+          password: "REPLACE-WITH-YOUR-OWN-OTA-PASSWORD"
+
+  to your second generated value.
+
+  Save the file. KEEP A COPY OF BOTH VALUES SOMEWHERE SAFE - a password
+  manager or a note. Home Assistant will ask you for the encryption key
+  when it first discovers the blind.
+
+
+  OPTIONAL: STARTING TRAVEL TIME RANGE
+
+  "duration_max" near the top of roller-blind.yaml sets where the
+  Open/Close Duration sliders top out on a brand new device. 45 seconds
+  suits most blinds, and you can change it later from the "Duration
+  Range" control without reflashing - see section 9.
+
+
+  OPTIONAL: NAME YOUR BLIND
+  ---------------------------------------------------------------------
+
+  Near the top of roller-blind.yaml:
+
+      device_name: "roller-blind"
+      friendly_name: "Roller Blind"
+
+  If you are building more than one, give each a different name -
+  roller-blind-1, roller-blind-2 and so on - and flash them one at a
+  time. Use lowercase letters, numbers and dashes only for device_name.
+
+
+-------------------------------------------------------------------------------
+  5. FLASH THE BOARD
+-------------------------------------------------------------------------------
+
+  Plug the ESP32-C3 board into your computer. Then, in the same terminal
+  window (the one showing "(esphome-env)"), run:
+
+      esphome run roller-blind.yaml
+
+  The first build takes a few minutes - ESPHome is downloading and
+  compiling everything. Later builds take seconds.
+
+  When it asks how to upload, choose the USB port:
+
+      Windows - something like COM3 or COM7
+      macOS   - something like /dev/cu.usbmodem1101
+
+  If no port is listed, see section 12.
+
+  It will also list an "Over The Air (...local)" option even now, on a
+  brand new board that has never been on your WiFi. Ignore it - ESPHome
+  offers it just because your config has OTA turned on, not because it
+  actually found the board over the network. Picking it here would just
+  fail to connect. Once the board has joined your WiFi (section 6), that
+  same option becomes real and is what section 11 uses for updates.
+
+  When flashing finishes, it drops straight into showing the device log.
+  That is a good sign. Press Ctrl+C to exit.
+
+
+-------------------------------------------------------------------------------
+  6. FIRST POWER-ON: CONNECTING TO YOUR WIFI
+-------------------------------------------------------------------------------
+
+  Your WiFi details are not in the firmware - you enter them now, once.
+
+    1. Power up the blind.
+    2. On your phone, open the WiFi list and connect to:
+
+           Network:  Roller Blind Setup
+           Password: blindsetup
+
+    3. A setup page should open by itself. If it does not, open a
+       browser and go to:
+
+           http://192.168.4.1
+
+    4. Pick your home network from the list, type its password, save.
+    5. The blind restarts and joins your network. The "Roller Blind
+       Setup" network disappears - that is how you know it worked.
+
+  Remember: 2.4 GHz networks only.
+
+
+  >>> YOUR PHONE WILL WARN YOU THERE IS NO INTERNET. THAT IS CORRECT. <<<
+
+  While you are connected to "Roller Blind Setup", you are connected to
+  the blind itself and to nothing else. It is a tiny network with one
+  device on it and no route to the outside world, so Android and iOS
+  will both complain that there is no internet connection.
+
+  Nothing is wrong. But phones try to be helpful here, and that is what
+  actually causes most failed setups:
+
+    - Android often shows "Network has no internet access" and silently
+      switches you back to mobile data. When that happens the setup page
+      simply will not load. Tap the notification and choose to stay
+      connected (the wording varies by phone - "Yes" / "Keep" / "Stay
+      connected"). On some phones you must turn mobile data off for a
+      minute instead.
+
+    - iPhone may show "Weak Security" or an exclamation mark next to the
+      network. Ignore it and carry on.
+
+    - If your browser opens a search results page instead of the setup
+      page, you typed the address into the search box rather than the
+      address bar. Type it again in the address bar, exactly:
+
+          http://192.168.4.1
+
+      Include the "http://" part. Without it, some browsers assume you
+      are searching rather than visiting an address.
+
+  Once you have saved your home network, everything goes back to normal
+  and your phone reconnects to your usual WiFi on its own.
+
+
+  ABOUT THAT ADDRESS
+
+  192.168.4.1 is the blind itself. While it has no network of its own to
+  join, it becomes a miniature router and gives itself that address -
+  this is the standard default for ESP32 boards in setup mode.
+
+  Two consequences worth knowing:
+
+    - It stops working the moment setup succeeds. After the blind joins
+      your home network it is no longer a router, and 192.168.4.1 will
+      not respond. From then on use the address in section 7.
+
+    - It is not unique to your blind. Every ESP32 device in setup mode
+      uses the same address, so make sure you connected to the network
+      named "Roller Blind Setup" and not something similar nearby.
+
+
+  If you would like a different setup password, change the "ap:" section
+  in roller-blind.yaml before flashing. It must be at least 8 characters.
+
+
+-------------------------------------------------------------------------------
+  7. FINDING YOUR BLIND (AND CHECKING IT WORKS)
+-------------------------------------------------------------------------------
+
+  BY NAME - open this in any browser on the same network:
+
+      http://roller-blind.local
+
+  (If you changed device_name in section 4, use your own name here.)
+
+  Note: .local addresses do not work on some Android versions. Use the
+  IP address instead.
+
+  BY IP ADDRESS - find it in your router's list of connected devices, or
+  read it from the log shown right after flashing (look for a line
+  saying "IP Address:"). Then open http:// followed by that address.
+
+  IN HOME ASSISTANT - nothing to do. The blind appears on its own under
+  Settings -> Devices & Services within a minute or two. Click Configure
+  and paste the encryption key you generated in section 4.
+
+  >>> THIS IS YOUR CHECKPOINT BEFORE YOU SOLDER ANYTHING <<<
+
+  The board is still bare, sitting on your desk, powered by the USB
+  cable - and that is enough to prove the brain works, before you
+  commit to a shape with a soldering iron. No motor is attached yet, so
+  nothing will actually move, and that is fine; you are checking the
+  software and the network, not the mechanics.
+
+  Open the address above in a browser and confirm:
+
+    - The page loads and shows "Blind" (or whatever name you gave it)
+      with a position and a percentage.
+    - The dot next to the theme button is lit, not grey - that means
+      the page is receiving live updates from the board.
+    - Dragging the slider or tapping a preset changes the number on
+      screen. It will not move anything for real yet - there is no
+      motor connected - you are only confirming the command reaches
+      the board.
+
+  Using Home Assistant? Also confirm the blind appeared under Settings
+  -> Devices & Services and that entering the encryption key you
+  generated in section 4 does not throw an error.
+
+  If any of this fails, this is the moment to fix it - reflash, check
+  the WiFi steps in section 6, or see section 12 - while the board is
+  still easy to reach. Finding a problem now costs you nothing; finding
+  it after everything below is soldered in means undoing your work to
+  get back to the USB port.
+
+  Once this all checks out, move on to section 8 and start soldering.
+
+
+-------------------------------------------------------------------------------
+  8. WIRING AND SOLDERING
+-------------------------------------------------------------------------------
+
+  Open wiring-diagram.svg in a browser and keep it in front of you.
+
+  Wire colours in the diagram:
+      red     = 12V        orange = 3.3V       black = ground
+      blue    = signal     green  = motor output
+
+  A dot means wires are joined. Lines that cross WITHOUT a dot are not
+  connected.
+
+
+  >>> STEP 1: SET THE BUCK CONVERTER BEFORE ANYTHING ELSE <<<
+
+  This is the step that kills boards. Do it exactly in this order:
+
+    a. Connect ONLY the DC jack and the Mini-360 - nothing else.
+    b. Power on the 12V adapter.
+    c. Put your multimeter on the Mini-360 OUT+ and OUT- pads.
+    d. Turn the tiny screw on the Mini-360 until you read 3.3V.
+       It may take many turns before anything moves. Be patient.
+    e. Power off. Only now connect anything else.
+
+  If you connect the ESP32 while the converter is still at its factory
+  voltage, you will destroy it instantly.
+
+
+  STEP 2: CONNECTIONS
+
+  Power:
+      DC jack +12V  -> Mini-360 IN+   AND   TB6612FNG VM
+      DC jack GND   -> Mini-360 IN-
+      Mini-360 OUT+ -> ESP32 3V3 pin  AND   TB6612FNG VCC
+      All grounds tied together (ESP32 GND, TB6612FNG GND, Mini-360 OUT-)
+
+  Signals, ESP32 -> TB6612FNG:
+      GPIO5   ->  PWMA
+      GPIO6   ->  AIN2
+      GPIO7   ->  AIN1
+      GPIO10  ->  STBY
+
+  Buttons (one leg to the GPIO, the other leg to ground):
+      GPIO20  ->  button "up"    -> GND
+      GPIO21  ->  button "down"  -> GND
+
+      No resistors needed. The firmware uses the chip's internal
+      pull-ups.
+
+  Motor:
+      TB6612FNG AO1 and AO2  ->  the two motor wires
+
+  Note: the TB6612FNG has a second channel (BIN1, BIN2, PWMB, BO1, BO2).
+  It is unused. Leave those pins alone.
+
+
+  >>> DON'T WORRY ABOUT POLARITY OR BUTTON ORDER <<<
+
+  Soldered the motor backwards? Buttons swapped? Do not desolder
+  anything. There are two switches in the interface - "Reverse Motor"
+  and "Reverse Buttons" - that fix both in software. Wire it whichever
+  way is physically convenient and sort it out later.
+
+
+  >>> NEVER CONNECT USB AND 12V AT THE SAME TIME <<<
+
+  Power goes directly to the ESP32's 3V3 pin, bypassing its onboard
+  regulator. If USB is also plugged in, two power supplies end up
+  fighting on the same rail. Unplug the 12V adapter whenever the USB
+  cable is connected, and vice versa.
+
+
+-------------------------------------------------------------------------------
+  9. CALIBRATION
+-------------------------------------------------------------------------------
+
+  There are no encoders or limit switches in this design. The blind
+  tracks its position BY TIME: you teach it how many seconds a full open
+  and a full close take, and it calculates everything from that.
+
+  Is it perfectly precise? No. Is it precise enough for a window blind?
+  Absolutely - the worm gear does not drift under load, and positions
+  stay accurate within a percent or two.
+
+  FIRST CALIBRATION
+  ---------------------------------------------------------------------
+
+    1. Open the web interface (section 7) and tap the sliders icon in
+       the top-right corner to open Settings.
+    2. Move the blind by hand or with the buttons until it is fully
+       CLOSED, then press "CAL bottom".
+    3. Move it until it is fully OPEN, then press "CAL top".
+
+  That tells it where the two ends are. Then set the travel times:
+
+    4. Still in Settings, use the +/- buttons next to "Open time" and
+       "Close time" until they roughly match how long a full travel
+       actually takes. Time it with a stopwatch once and enter that.
+
+  NUDGE: MOVING THE BLIND WHEN IT THINKS IT IS ALREADY AT THE END
+  ---------------------------------------------------------------------
+
+  Sooner or later the blind will report 100% while it is clearly still a
+  few centimetres short of the top - or report 0% while it could still
+  go lower. The normal up/down controls will not help, because as far as
+  the firmware is concerned there is nowhere left to travel.
+
+  That is what "Nudge up" and "Nudge down" are for. You will find them
+  in Settings, under MANUAL NUDGE, and also as buttons in Home
+  Assistant.
+
+    - Each tap runs the motor for one short step (0.5 seconds by
+      default).
+    - HOLD the button and it keeps travelling, stopping one step after
+      you let go.
+    - Nudging works at any position, including both ends.
+
+  Important: nudging does NOT change the reported position and does NOT
+  change your calibration. It only moves the physical blind. That is
+  deliberate - it lets you correct the blind without disturbing settings
+  that took you time to get right.
+
+  So the repair procedure for a drifted blind is:
+
+    1. Nudge until the blind is physically where it should be.
+    2. Press "CAL top" (or "CAL bottom") to tell the firmware that this
+       position is now 100% (or 0%).
+
+  You can change the step size with "Nudge step" in Settings - anywhere
+  from 0.1 to 5 seconds. Smaller is more precise; larger covers more
+  distance per tap. If you set it below about 0.3 seconds, holding the
+  button will move in visible steps rather than smoothly.
+
+  MAKING THE DURATION SLIDERS EASIER TO SET
+  ---------------------------------------------------------------------
+
+  Home Assistant draws Open/Close Duration as sliders spanning their full
+  range. If that range is much wider than your blind needs, the useful
+  part is only a few pixels across and setting 20.5 s exactly becomes
+  guesswork.
+
+  "Duration Range" (in Settings, and in Home Assistant) sets that upper
+  limit - anywhere from 20 to 120 seconds. Set it just above your
+  blind's real travel time and the sliders become far easier to aim.
+
+  Two things to know:
+
+    - Changing it restarts the blind, about ten seconds after you let go
+      of the slider. This is unavoidable: Home Assistant reads a
+      number's limits only when it connects to the device, so nothing
+      short of a reconnect will refresh them. The restart is skipped
+      while the blind is moving.
+
+    - Lowering the range below a stored travel time trims that time to
+      fit. Raising it again does not bring the old value back, so note
+      your times before making the range much smaller.
+
+
+  >>> DO NOT HOLD A NUDGE AGAINST A PHYSICAL STOP <<<
+
+  Nudging deliberately ignores the software limits, which means nothing
+  stops you from driving the blind into its own end stop and holding it
+  there. The worm gear motor will happily stall, drawing high current
+  and heating up the driver. Nudge in short taps near the ends, and stop
+  as soon as the blind stops moving.
+
+
+  FINE-TUNING FROM THE PHYSICAL BUTTONS
+  ---------------------------------------------------------------------
+
+  Once it is roughly right, you never need a computer again:
+
+    - When the blind is already fully open, HOLD the up button. The
+      motor keeps nudging further. Release it the moment it reaches the
+      real physical stop.
+    - Same with the down button when fully closed.
+
+  The extra run time is added to the stored duration automatically, so
+  0% and 100% now match the true physical limits. Takes ten seconds.
+
+  (Total travel time is capped at 120 seconds.)
+
+
+-------------------------------------------------------------------------------
+ 10. EVERYDAY USE
+-------------------------------------------------------------------------------
+
+  PHYSICAL BUTTONS
+
+    Short press (under 1 second)
+      Up    - opens fully. Press again while moving to stop anywhere.
+      Down  - closes fully. Press again while moving to stop anywhere.
+
+    Long press (1 second or more), only at the very top or bottom
+      Fine-tunes the end position - see section 9.
+
+  WEB INTERFACE
+
+    - Drag the blind itself up and down, or use the slider.
+    - Four presets: Morning 70%, Day 100%, Night 0%, Half 50%.
+    - Up / Stop / Down buttons.
+    - Three visual themes (the circle icon) and English / Ukrainian
+      (the EN button).
+    - Settings (the sliders icon): reverse switches, travel times,
+      nudge controls and calibration.
+
+  HOME ASSISTANT
+
+    The blind appears as a cover entity with full position control. You
+    can group several blinds together, or automate them to follow the
+    sun. Everything runs locally - no cloud, no account, no
+    subscription. It keeps working if your internet goes down.
+
+
+-------------------------------------------------------------------------------
+ 11. UPDATING LATER
+-------------------------------------------------------------------------------
+
+  You only ever need the USB cable once. From then on, every time you
+  want to change a setting or update the firmware:
+
+    1. Open a terminal inside the roller-blind folder again - see
+       section 3.1 if you don't remember how. This is the step people
+       forget weeks later, once the original terminal window is long
+       closed.
+
+    2. Reactivate ESPHome:
+
+           Windows:  esphome-env\Scripts\activate
+           macOS:    source esphome-env/bin/activate
+
+    3. If you're changing something, edit roller-blind.yaml now.
+
+    4. Run the same command as the first time:
+
+           esphome run roller-blind.yaml
+
+       and choose the wireless option (Over The Air) instead of a USB
+       port.
+
+  >>> AFTER ANY UPDATE, HARD-REFRESH THE WEB PAGE <<<
+
+  Press Ctrl+Shift+R (Windows) or Cmd+Shift+R (Mac).
+
+  Browsers cache the interface aggressively. Without a hard refresh you
+  will still be looking at the OLD version and will think the update
+  failed. This catches everybody at least once.
+
+
+-------------------------------------------------------------------------------
+ 12. TROUBLESHOOTING
+-------------------------------------------------------------------------------
+
+  "esphome" IS NOT RECOGNIZED, OR "No such file or directory:
+  roller-blind.yaml"
+    Your terminal isn't inside the roller-blind folder, or ESPHome
+    isn't active in this window. Go back to section 3.1 to get into
+    the folder, then reactivate ESPHome as shown in section 11 step 2,
+    before trying again.
+
+  NO SERIAL PORT LISTED / BOARD NOT DETECTED
+    Almost always the cable. Swap it for one you know carries data - a
+    cable used for phone syncing will do. Then try a different USB port
+    and avoid USB hubs. Just plugged the board in? Wait about ten
+    seconds and check again - some computers take a moment to notice
+    it.
+
+  STILL NOT DETECTED
+    Put the board into download mode by hand: hold the BOOT button,
+    plug in the USB cable, then release BOOT after a second. Try again.
+
+  "Invalid key format, please check it's using base64"
+    You have not replaced the encryption key yet. Go back to section 4.
+    This error is deliberate.
+
+  FLASHING FAILS PARTWAY THROUGH
+    Usually a marginal cable or a hub. Plug straight into the computer,
+    try another cable, run it again. Failed flashes damage nothing.
+
+  SETUP PAGE WILL NOT OPEN / 192.168.4.1 DOES NOT RESPOND
+    Your phone has almost certainly dropped back to mobile data because
+    the setup network has no internet. Turn mobile data off for a
+    minute, reconnect to "Roller Blind Setup", and try again. Type the
+    address in the browser's address bar including "http://", not in a
+    search box. See the boxed note in section 6.
+
+  BOARD FLASHED BUT NEVER JOINS WIFI
+    Check you gave it a 2.4 GHz network - the ESP32 cannot see 5 GHz at
+    all. Check the password for typos. If the setup network reappears
+    after a while, the credentials were wrong; just redo section 6.
+
+  http://roller-blind.local DOES NOT OPEN
+    mDNS is not available on your device or network. Use the IP address
+    instead (section 7).
+
+  HOME ASSISTANT DOES NOT FIND IT
+    Confirm it is on the same network as Home Assistant - not a guest
+    network or a separate VLAN. Then add it manually:
+    Settings -> Devices & Services -> Add Integration -> ESPHome, and
+    enter its IP address.
+
+  BLIND MOVES THE WRONG WAY
+    Open Settings in the web interface and turn on "Reverse Motor".
+    No rewiring needed.
+
+  BUTTONS DO THE OPPOSITE OF WHAT THEY SHOULD
+    Open Settings and turn on "Reverse Buttons".
+
+  BLIND SAYS 100% (OR 0%) BUT IS NOT ACTUALLY AT THE END
+    Use "Nudge up" / "Nudge down" in Settings - they move the motor even
+    when the firmware thinks there is nowhere left to go. Then press
+    "CAL top" or "CAL bottom" to re-sync. See section 9.
+
+  POSITION DRIFTS OVER TIME
+    Recalibrate - section 9. A long press at each end takes ten seconds
+    and fixes it.
+
+  CONNECTION DROPS / WIRELESS UPDATES FAIL
+    Check signal strength in the device log. Below about -75 dB the
+    connection becomes unreliable. Move it closer to the router or add a
+    repeater. Bay windows with metal blinds nearby are common culprits.
+
+  MOTOR HUMS BUT DOES NOT TURN
+    Check the 12V supply is actually delivering 12V under load, and that
+    STBY (GPIO10) is connected. The driver stays disabled without it.
+
+
+===============================================================================
+  If you build one, please share a photo in the comments. Seeing this
+  working on someone else's window would honestly make my month.
+
+  Happy making!
+===============================================================================

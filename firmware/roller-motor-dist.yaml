@@ -1,0 +1,712 @@
+# ═══════════════════════════════════════════════════════════════════════
+#  SMART ROLLER BLIND — ESPHome firmware
+#
+#  Before flashing you MUST replace the two placeholder keys below.
+#  Everything else works as-is. See INSTRUCTIONS.txt, section 4.
+#
+#  Your WiFi details are NOT stored in this file. You enter them from
+#  your phone the first time the device powers on.
+# ═══════════════════════════════════════════════════════════════════════
+
+substitutions:
+  # Name on your network. Lowercase letters, numbers and dashes only.
+  # Building more than one? Give each blind its own name:
+  # roller-blind-1, roller-blind-2, ... and flash them one at a time.
+  device_name: "roller-blind"
+  friendly_name: "Roller Blind"
+
+  # Rough travel times in seconds. You will fine-tune these later by
+  # calibrating, so there is no need to measure them now.
+  open_seconds: "21.0"
+  close_seconds: "20.0"
+
+  open_duration: "${open_seconds}s"
+  close_duration: "${close_seconds}s"
+
+  # Upper limit of the Open/Close Duration controls. Home Assistant draws
+  # them as sliders spanning the whole range, so a needlessly high ceiling
+  # squeezes the useful part into a few pixels. Most blinds travel for
+  # 15-30 s; raise this only if yours takes longer.
+  duration_max: "45"
+
+esphome:
+  name: ${device_name}
+  friendly_name: ${friendly_name}
+  on_boot:
+    - priority: 600
+      then:
+        - lambda: |-
+            esp_ota_mark_app_valid_cancel_rollback();
+
+    # Restoring a number republishes its saved value but does NOT run its
+    # set_action, and the cover's travel times are only ever written from those
+    # set_actions. Without this block the numbers would show the saved
+    # calibration while the cover quietly ran on the compile-time defaults.
+    # The numbers are the single source of truth; everything is synced from
+    # them here — after setup, and before Home Assistant connects, since HA
+    # reads a number's min/max only from the entity list sent on connect.
+    - priority: -100
+      then:
+        - lambda: |-
+            float m = id(num_duration_max).state;
+            if (!std::isnan(m)) {
+              id(num_open_time).traits.set_max_value(m);
+              id(num_close_time).traits.set_max_value(m);
+            }
+            float o = id(num_open_time).state;
+            if (!std::isnan(o)) {
+              id(open_time_s) = o;
+              id(blind).set_open_duration((uint32_t)(o * 1000));
+            }
+            float c = id(num_close_time).state;
+            if (!std::isnan(c)) {
+              id(close_time_s) = c;
+              id(blind).set_close_duration((uint32_t)(c * 1000));
+            }
+            float n = id(num_nudge_step).state;
+            if (!std::isnan(n)) {
+              id(nudge_step_s) = n;
+            }
+
+esp32:
+  board: esp32-c3-devkitm-1
+  variant: esp32c3
+  framework:
+    type: esp-idf
+
+logger:
+  hardware_uart: USB_SERIAL_JTAG
+
+# ─── REPLACE ME (1 of 2) ───────────────────────────────────────────────
+# Encrypts the link between this blind and Home Assistant.
+# Generate your own key — INSTRUCTIONS.txt section 4 has the command.
+# Flashing will fail with a clear error until you replace this line.
+api:
+  encryption:
+    key: "REPLACE-WITH-YOUR-OWN-GENERATED-KEY"
+
+# ─── REPLACE ME (2 of 2) ───────────────────────────────────────────────
+# Protects wireless firmware updates. Any long random string will do.
+ota:
+  - platform: esphome
+    password: "REPLACE-WITH-YOUR-OWN-OTA-PASSWORD"
+
+# No home network here on purpose — this file is shared publicly, and
+# baking WiFi credentials into firmware would publish them to everyone.
+# On first boot the blind creates the setup network below; you join it
+# from your phone and pick your real network there.
+wifi:
+  ap:
+    ssid: "Roller Blind Setup"
+    password: "blindsetup"
+
+captive_portal:
+
+# Custom web UI. ESPHome generates the HTML shell and serves these two files
+# from flash (gzipped) at /0.css and /0.js. Empty *_url options disable the
+# stock ESPHome frontend so only our UI loads.
+#
+# WARNING: the web UI addresses entities by their `name:`, not their `id:`
+# (ESPHome builds REST URLs from the name). Renaming any entity below breaks
+# the UI silently — update the NAME map at the top of www/custom.js to match.
+web_server:
+  port: 80
+  version: 2
+  css_include: "www/custom.css"
+  css_url: ""
+  js_include: "www/custom.js"
+  js_url: ""
+
+# ──────────────────────────────────────────
+# TB6612FNG pin mapping
+#   GPIO5  → PWMA
+#   GPIO6  → AIN2
+#   GPIO7  → AIN1
+#   GPIO10 → STBY
+# Buttons
+#   GPIO20 → BTN 1 (up)
+#   GPIO21 → BTN 2 (down)
+# ──────────────────────────────────────────
+
+globals:
+  - id: open_time_s
+    type: float
+    restore_value: true
+    initial_value: '${open_seconds}'
+  - id: close_time_s
+    type: float
+    restore_value: true
+    initial_value: '${close_seconds}'
+  - id: swap_buttons
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: reverse_motor
+    type: bool
+    restore_value: true
+    initial_value: 'false'
+  - id: cal_long_start_ms
+    type: float
+    restore_value: false
+    initial_value: '0.0'
+  - id: cal_long_dir
+    type: int
+    restore_value: false
+    initial_value: '0'
+  - id: nudge_step_s
+    type: float
+    restore_value: true
+    initial_value: '0.5'
+
+output:
+  - platform: ledc
+    pin: GPIO5
+    id: motor_pwm
+    frequency: 1000 Hz
+
+switch:
+  - platform: gpio
+    pin: GPIO6
+    id: ain2
+    internal: true
+  - platform: gpio
+    pin: GPIO7
+    id: ain1
+    internal: true
+  - platform: gpio
+    pin: GPIO10
+    id: stby
+    internal: true
+    restore_mode: ALWAYS_OFF
+
+  - platform: template
+    name: "Swap Buttons"
+    id: btn_swap
+    icon: mdi:swap-vertical
+    restore_mode: RESTORE_DEFAULT_OFF
+    lambda: 'return id(swap_buttons);'
+    turn_on_action:
+      - globals.set:
+          id: swap_buttons
+          value: 'true'
+    turn_off_action:
+      - globals.set:
+          id: swap_buttons
+          value: 'false'
+
+  - platform: template
+    name: "Reverse Motor"
+    id: motor_reverse
+    icon: mdi:swap-horizontal
+    restore_mode: RESTORE_DEFAULT_OFF
+    lambda: 'return id(reverse_motor);'
+    turn_on_action:
+      - globals.set:
+          id: reverse_motor
+          value: 'true'
+    turn_off_action:
+      - globals.set:
+          id: reverse_motor
+          value: 'false'
+
+script:
+  - id: motor_up
+    then:
+      - switch.turn_on: stby
+      - delay: 150ms
+      - lambda: |-
+          if (!id(reverse_motor)) {
+            id(ain1).turn_off();
+            id(ain2).turn_on();
+          } else {
+            id(ain2).turn_off();
+            id(ain1).turn_on();
+          }
+      - output.set_level:
+          id: motor_pwm
+          level: 30%
+      - delay: 200ms
+      - output.set_level:
+          id: motor_pwm
+          level: 70%
+      - delay: 200ms
+      - output.set_level:
+          id: motor_pwm
+          level: 100%
+
+  - id: motor_down
+    then:
+      - switch.turn_on: stby
+      - delay: 150ms
+      - lambda: |-
+          if (!id(reverse_motor)) {
+            id(ain2).turn_off();
+            id(ain1).turn_on();
+          } else {
+            id(ain1).turn_off();
+            id(ain2).turn_on();
+          }
+      - output.set_level:
+          id: motor_pwm
+          level: 30%
+      - delay: 200ms
+      - output.set_level:
+          id: motor_pwm
+          level: 70%
+      - delay: 200ms
+      - output.set_level:
+          id: motor_pwm
+          level: 100%
+
+  - id: stop_motor
+    then:
+      - output.set_level:
+          id: motor_pwm
+          level: 0%
+      - switch.turn_off: ain1
+      - switch.turn_off: ain2
+      - switch.turn_off: stby
+
+  # ──────────────────────────────────────────
+  # Manual nudge
+  #
+  # Runs the motor for `nudge_step_s` regardless of what position the cover
+  # thinks it is at — including when it believes it is already fully open or
+  # closed. Deliberately does NOT touch the reported position or the stored
+  # open/close durations: this is a physical correction, not a calibration.
+  #
+  # mode: restart means repeated taps (or press-and-hold in the web UI)
+  # restart the timer instead of queueing, so holding gives continuous travel
+  # that stops `nudge_step_s` after you let go.
+  #
+  # Nudging is blocked while the cover is already travelling, so a nudge can
+  # never fight an open/close in progress.
+  # ──────────────────────────────────────────
+  - id: nudge_up
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(blind).current_operation == COVER_OPERATION_IDLE;'
+          then:
+            - switch.turn_on: stby
+            - delay: 50ms
+            - lambda: |-
+                if (!id(reverse_motor)) {
+                  id(ain1).turn_off();
+                  id(ain2).turn_on();
+                } else {
+                  id(ain2).turn_off();
+                  id(ain1).turn_on();
+                }
+            - output.set_level:
+                id: motor_pwm
+                level: 70%
+            - delay: !lambda 'return (uint32_t)(id(nudge_step_s) * 1000.0f);'
+            - script.execute: stop_motor
+
+  - id: nudge_down
+    mode: restart
+    then:
+      - if:
+          condition:
+            lambda: 'return id(blind).current_operation == COVER_OPERATION_IDLE;'
+          then:
+            - switch.turn_on: stby
+            - delay: 50ms
+            - lambda: |-
+                if (!id(reverse_motor)) {
+                  id(ain2).turn_off();
+                  id(ain1).turn_on();
+                } else {
+                  id(ain1).turn_off();
+                  id(ain2).turn_on();
+                }
+            - output.set_level:
+                id: motor_pwm
+                level: 70%
+            - delay: !lambda 'return (uint32_t)(id(nudge_step_s) * 1000.0f);'
+            - script.execute: stop_motor
+
+  # ──────────────────────────────────────────
+  # Applying a new Duration Range
+  #
+  # The traits are updated the moment the slider moves, so the built-in web UI
+  # follows on its next page load. Home Assistant is different: it reads a
+  # number's min/max only from the entity list it receives when it connects,
+  # so nothing short of a reconnect will refresh its slider. Restarting is the
+  # one reliable way to trigger that.
+  #
+  # mode: restart debounces the drag — only the final value schedules a reboot,
+  # six seconds later, and only while the blind is standing still.
+  # ──────────────────────────────────────────
+  - id: apply_duration_range
+    mode: restart
+    then:
+      - delay: 6s
+      - if:
+          condition:
+            lambda: 'return id(blind).current_operation == COVER_OPERATION_IDLE;'
+          then:
+            - logger.log: "Duration range changed - restarting so Home Assistant reloads the slider limits"
+            - lambda: 'App.safe_reboot();'
+
+  - id: cal_finish_up
+    then:
+      - script.execute: stop_motor
+      - lambda: |-
+          if (id(cal_long_dir) == 1) {
+            float elapsed = (float)millis() - id(cal_long_start_ms);
+            float new_time = id(open_time_s) + (elapsed / 1000.0f);
+            float cap = id(num_duration_max).state;
+            if (std::isnan(cap)) cap = ${duration_max}.0f;
+            if (new_time > cap) new_time = cap;
+            id(open_time_s) = new_time;
+            id(blind).set_open_duration((uint32_t)(new_time * 1000));
+            id(blind).position = 1.0f;
+            id(blind).current_operation = COVER_OPERATION_IDLE;
+            id(blind).publish_state();
+            id(cal_long_dir) = 0;
+          }
+
+  - id: cal_finish_down
+    then:
+      - script.execute: stop_motor
+      - lambda: |-
+          if (id(cal_long_dir) == 2) {
+            float elapsed = (float)millis() - id(cal_long_start_ms);
+            float new_time = id(close_time_s) + (elapsed / 1000.0f);
+            float cap = id(num_duration_max).state;
+            if (std::isnan(cap)) cap = ${duration_max}.0f;
+            if (new_time > cap) new_time = cap;
+            id(close_time_s) = new_time;
+            id(blind).set_close_duration((uint32_t)(new_time * 1000));
+            id(blind).position = 0.0f;
+            id(blind).current_operation = COVER_OPERATION_IDLE;
+            id(blind).publish_state();
+            id(cal_long_dir) = 0;
+          }
+
+binary_sensor:
+  - platform: gpio
+    name: "Button Up"
+    id: btn_1
+    pin:
+      number: GPIO20
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 50ms
+
+    on_multi_click:
+      - timing:
+          - ON for at most 900ms
+          - OFF for at least 50ms
+        then:
+          - if:
+              condition:
+                lambda: 'return !id(swap_buttons);'
+              then:
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(blind).current_operation == COVER_OPERATION_OPENING
+                            || id(blind).position >= 0.99f;
+                    then:
+                      - cover.stop: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_stop
+                          data: {}
+                    else:
+                      - cover.open: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_up
+                          data: {}
+              else:
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(blind).current_operation == COVER_OPERATION_CLOSING
+                            || id(blind).position <= 0.01f;
+                    then:
+                      - cover.stop: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_stop
+                          data: {}
+                    else:
+                      - cover.close: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_down
+                          data: {}
+
+      - timing:
+          - ON for at least 1s
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  if (!id(swap_buttons)) {
+                    return id(blind).position >= 0.99f;
+                  } else {
+                    return id(blind).position <= 0.01f;
+                  }
+              then:
+                - lambda: |-
+                    id(cal_long_start_ms) = (float)millis();
+                    id(cal_long_dir) = (!id(swap_buttons)) ? 1 : 2;
+                - if:
+                    condition:
+                      lambda: 'return !id(swap_buttons);'
+                    then:
+                      - script.execute: motor_up
+                    else:
+                      - script.execute: motor_down
+
+    on_release:
+      - if:
+          condition:
+            lambda: 'return id(cal_long_dir) != 0;'
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(cal_long_dir) == 1;'
+                then:
+                  - script.execute: cal_finish_up
+                else:
+                  - script.execute: cal_finish_down
+
+  - platform: gpio
+    name: "Button Down"
+    id: btn_2
+    pin:
+      number: GPIO21
+      mode:
+        input: true
+        pullup: true
+      inverted: true
+    filters:
+      - delayed_on: 30ms
+      - delayed_off: 50ms
+
+    on_multi_click:
+      - timing:
+          - ON for at most 900ms
+          - OFF for at least 50ms
+        then:
+          - if:
+              condition:
+                lambda: 'return !id(swap_buttons);'
+              then:
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(blind).current_operation == COVER_OPERATION_CLOSING
+                            || id(blind).position <= 0.01f;
+                    then:
+                      - cover.stop: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_stop
+                          data: {}
+                    else:
+                      - cover.close: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_down
+                          data: {}
+              else:
+                - if:
+                    condition:
+                      lambda: |-
+                        return id(blind).current_operation == COVER_OPERATION_OPENING
+                            || id(blind).position >= 0.99f;
+                    then:
+                      - cover.stop: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_stop
+                          data: {}
+                    else:
+                      - cover.open: blind
+                      - homeassistant.event:
+                          event: esphome.roller_master_up
+                          data: {}
+
+      - timing:
+          - ON for at least 1s
+        then:
+          - if:
+              condition:
+                lambda: |-
+                  if (!id(swap_buttons)) {
+                    return id(blind).position <= 0.01f;
+                  } else {
+                    return id(blind).position >= 0.99f;
+                  }
+              then:
+                - lambda: |-
+                    id(cal_long_start_ms) = (float)millis();
+                    id(cal_long_dir) = (!id(swap_buttons)) ? 2 : 1;
+                - if:
+                    condition:
+                      lambda: 'return !id(swap_buttons);'
+                    then:
+                      - script.execute: motor_down
+                    else:
+                      - script.execute: motor_up
+
+    on_release:
+      - if:
+          condition:
+            lambda: 'return id(cal_long_dir) != 0;'
+          then:
+            - if:
+                condition:
+                  lambda: 'return id(cal_long_dir) == 2;'
+                then:
+                  - script.execute: cal_finish_down
+                else:
+                  - script.execute: cal_finish_up
+
+number:
+  - platform: template
+    name: "Open Duration"
+    id: num_open_time
+    min_value: 1
+    max_value: ${duration_max}
+    step: 0.5
+    initial_value: ${open_seconds}
+    restore_value: true
+    optimistic: true
+    unit_of_measurement: "s"
+    set_action:
+      - globals.set:
+          id: open_time_s
+          value: !lambda 'return x;'
+      - lambda: |-
+          id(blind).set_open_duration(id(open_time_s) * 1000);
+
+  - platform: template
+    name: "Close Duration"
+    id: num_close_time
+    min_value: 1
+    max_value: ${duration_max}
+    step: 0.5
+    initial_value: ${close_seconds}
+    restore_value: true
+    optimistic: true
+    unit_of_measurement: "s"
+    set_action:
+      - globals.set:
+          id: close_time_s
+          value: !lambda 'return x;'
+      - lambda: |-
+          id(blind).set_close_duration(id(close_time_s) * 1000);
+
+  - platform: template
+    name: "Duration Range"
+    id: num_duration_max
+    icon: mdi:arrow-left-right
+    min_value: 20
+    max_value: 120
+    step: 5
+    initial_value: ${duration_max}
+    restore_value: true
+    optimistic: true
+    unit_of_measurement: "s"
+    entity_category: config
+    set_action:
+      - lambda: |-
+          // Widen or narrow both duration controls to match.
+          id(num_open_time).traits.set_max_value(x);
+          id(num_close_time).traits.set_max_value(x);
+          // A lowered ceiling must not leave the stored times above it.
+          if (id(num_open_time).state > x) {
+            id(open_time_s) = x;
+            id(blind).set_open_duration((uint32_t)(x * 1000));
+            id(num_open_time).publish_state(x);
+          }
+          if (id(num_close_time).state > x) {
+            id(close_time_s) = x;
+            id(blind).set_close_duration((uint32_t)(x * 1000));
+            id(num_close_time).publish_state(x);
+          }
+      - script.execute: apply_duration_range
+
+  - platform: template
+    name: "Nudge Step"
+    id: num_nudge_step
+    icon: mdi:arrow-expand-vertical
+    min_value: 0.1
+    max_value: 5
+    step: 0.1
+    initial_value: 0.5
+    restore_value: true
+    optimistic: true
+    unit_of_measurement: "s"
+    entity_category: config
+    set_action:
+      - globals.set:
+          id: nudge_step_s
+          value: !lambda 'return x;'
+
+cover:
+  - platform: time_based
+    name: "Blind"
+    id: blind
+    device_class: shade
+    assumed_state: true
+    open_action:
+      - script.execute: motor_up
+    open_duration: ${open_duration}
+    close_action:
+      - script.execute: motor_down
+    close_duration: ${close_duration}
+    stop_action:
+      - script.execute: stop_motor
+
+button:
+  # Force the motor to move even when the cover reports it is already at an
+  # end position. Use these to correct physical drift; they change nothing
+  # about the stored calibration.
+  - platform: template
+    name: "Nudge Up"
+    id: btn_nudge_up
+    icon: mdi:chevron-up
+    on_press:
+      - script.execute: nudge_up
+
+  - platform: template
+    name: "Nudge Down"
+    id: btn_nudge_down
+    icon: mdi:chevron-down
+    on_press:
+      - script.execute: nudge_down
+
+  - platform: template
+    name: "Calibrate Closed"
+    id: btn_cal_close
+    icon: mdi:arrow-collapse-down
+    on_press:
+      - script.execute: stop_motor
+      - lambda: |-
+          id(blind).position = 0.0;
+          id(blind).current_operation = COVER_OPERATION_IDLE;
+          id(blind).publish_state();
+
+  - platform: template
+    name: "Calibrate Open"
+    id: btn_cal_open
+    icon: mdi:arrow-collapse-up
+    on_press:
+      - script.execute: stop_motor
+      - lambda: |-
+          id(blind).position = 1.0;
+          id(blind).current_operation = COVER_OPERATION_IDLE;
+          id(blind).publish_state();
+
+  - platform: template
+    name: "Stop"
+    icon: mdi:stop
+    on_press:
+      - cover.stop: blind

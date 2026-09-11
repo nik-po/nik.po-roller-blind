@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 1000" width="1200" height="1000" font-family="Inter, 'Helvetica Neue', Arial, sans-serif">
+  <style>
+    .box   { fill:#fff; stroke:#2f3640; stroke-width:2; rx:8; }
+    .btitle{ font-size:16px; font-weight:700; fill:#1b1f26; text-anchor:middle; }
+    .bsub  { font-size:11px; fill:#7a8290; text-anchor:middle; }
+    .pin   { font-size:12px; font-weight:600; fill:#2f3640; }
+    .pinR  { font-size:12px; font-weight:600; fill:#2f3640; text-anchor:end; }
+    .wlbl  { font-size:11px; font-weight:700; }
+    .w12   { stroke:#d63c30; stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .w33   { stroke:#e08a1e; stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .wgnd  { stroke:#2f3640; stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .wsig  { stroke:#1f6fd0; stroke-width:2.5; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+    .wmot  { stroke:#12946b; stroke-width:3; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+  </style>
+
+  <rect x="0" y="0" width="1200" height="1000" fill="#ffffff"/>
+
+  <text x="40" y="42" font-size="24" font-weight="700" fill="#1b1f26">Roller Blind — Wiring Diagram</text>
+  <text x="40" y="64" font-size="13" fill="#7a8290">ESP32-C3 SuperMini · TB6612FNG · JGY-370 12V · Mini-360</text>
+
+  <!-- ══ DC JACK ══ -->
+  <rect class="box" x="40" y="90" width="170" height="70"/>
+  <text class="btitle" x="125" y="120">DC JACK</text>
+  <text class="bsub"   x="125" y="138">5.5 × 2.1 mm · 12 V</text>
+  <text class="pin" x="60"  y="155">+12V</text>
+  <text class="pin" x="140" y="155">GND</text>
+
+  <!-- ══ MINI-360 ══ -->
+  <rect class="box" x="40" y="250" width="170" height="110"/>
+  <text class="btitle" x="125" y="292">Mini-360</text>
+  <text class="bsub"   x="125" y="310">buck converter</text>
+  <text class="bsub"   x="125" y="326" font-weight="700" fill="#d63c30">SET TO 3.3 V FIRST</text>
+  <text class="pin" x="66"  y="268">IN+</text>
+  <text class="pin" x="142" y="268">IN−</text>
+  <text class="pin" x="62"  y="352">OUT+</text>
+  <text class="pin" x="138" y="352">OUT−</text>
+
+  <!--
+    ESP32-C3 and TB6612FNG pin order below follows the actual boards'
+    silkscreen (see the reference photo): on the SuperMini, GND sits
+    above 3V3 on the left column, and GPIO5/6/7/10 run top-to-bottom on
+    the right column in that order. On the TB6612FNG breakout, PWMA /
+    AIN2 / AIN1 / STBY run top-to-bottom on the left column, and
+    VM / VCC / AO1 / AO2 top-to-bottom on the right column — so placing
+    the two boards' matching rows at the same height makes every signal
+    wire a straight horizontal line, with no jogs and nothing to cross.
+  -->
+
+  <!-- ══ ESP32-C3 ══ -->
+  <rect class="box" x="300" y="430" width="220" height="390"/>
+  <text class="btitle" x="410" y="462">ESP32-C3 SuperMini</text>
+  <text class="bsub"   x="410" y="480">pin order matches the</text>
+  <text class="bsub"   x="410" y="494">board silkscreen</text>
+  <text class="pin"  x="310" y="518">GND</text>
+  <text class="pin"  x="310" y="542">3V3</text>
+  <text class="pinR" x="510" y="566">GPIO5</text>
+  <text class="pinR" x="510" y="606">GPIO6</text>
+  <text class="pinR" x="510" y="646">GPIO7</text>
+  <text class="pinR" x="510" y="686">GPIO10</text>
+  <text class="pinR" x="510" y="722">GPIO20</text>
+  <text class="pinR" x="510" y="788">GPIO21</text>
+
+  <!-- ══ TB6612FNG ══ -->
+  <rect class="box" x="760" y="430" width="230" height="390"/>
+  <text class="btitle" x="875" y="462">TB6612FNG</text>
+  <text class="bsub"   x="875" y="480">motor driver</text>
+  <text class="bsub"   x="875" y="494">channel A used, B unused</text>
+  <text class="pin"  x="770" y="566">PWMA</text>
+  <text class="pin"  x="770" y="606">AIN2</text>
+  <text class="pin"  x="770" y="646">AIN1</text>
+  <text class="pin"  x="770" y="686">STBY</text>
+  <text class="pinR" x="980" y="566">VM</text>
+  <text class="pinR" x="980" y="606">VCC</text>
+  <text class="pinR" x="980" y="686">AO1</text>
+  <text class="pinR" x="980" y="726">AO2</text>
+  <text class="pinR" x="980" y="790">GND</text>
+
+  <!-- ══ MOTOR ══ -->
+  <rect class="box" x="1050" y="670" width="130" height="110"/>
+  <text class="btitle" x="1115" y="700">JGY-370</text>
+  <text class="bsub"   x="1115" y="716">12 V 40 RPM worm gear</text>
+  <text class="bsub"   x="1115" y="736" font-weight="700" fill="#12946b">polarity not critical -</text>
+  <text class="bsub"   x="1115" y="750" font-weight="700" fill="#12946b">flip "Reverse Motor"</text>
+
+  <!--
+    Buttons sit stacked in the gap between the two boards, level with
+    their own GPIO row — the same gap the four signal wires already
+    cross, just lower down where nothing else runs. This keeps every
+    button wire a short straight line with nothing to jog around.
+  -->
+
+  <!-- ══ BUTTONS ══ -->
+  <rect class="box" x="580" y="700" width="100" height="45"/>
+  <text class="btitle" x="630" y="718" font-size="13">BTN UP</text>
+  <text class="bsub"   x="630" y="734">tactile</text>
+
+  <rect class="box" x="580" y="765" width="100" height="45"/>
+  <text class="btitle" x="630" y="783" font-size="13">BTN DOWN</text>
+  <text class="bsub"   x="630" y="799">tactile</text>
+
+  <!-- ══ NOTES ══ -->
+  <!-- Kept short enough to end above the motor box (y=670) below it -
+       a taller version here would overlap the motor at this width. The
+       motor-polarity note lives on the motor box itself instead. -->
+  <rect x="1045" y="430" width="150" height="225" fill="#fdf7ec" stroke="#e0c89a" stroke-width="1.5" rx="8"/>
+  <text x="1060" y="452" font-size="12.5" font-weight="700" fill="#8a6a1e">BEFORE POWER-UP</text>
+  <text x="1060" y="474" font-size="10.5" fill="#5a4a2a">1. Set Mini-360 to 3.3V</text>
+  <text x="1060" y="488" font-size="10.5" fill="#5a4a2a">   first - multimeter,</text>
+  <text x="1060" y="502" font-size="10.5" fill="#5a4a2a">   no load. Wrong volt-</text>
+  <text x="1060" y="516" font-size="10.5" fill="#5a4a2a">   age kills the ESP.</text>
+  <text x="1060" y="538" font-size="10.5" fill="#5a4a2a">2. Flash over USB</text>
+  <text x="1060" y="552" font-size="10.5" fill="#5a4a2a">   before soldering in.</text>
+  <text x="1060" y="574" font-size="10.5" fill="#5a4a2a">3. Never USB + 12V</text>
+  <text x="1060" y="588" font-size="10.5" fill="#5a4a2a">   together - they'd</text>
+  <text x="1060" y="602" font-size="10.5" fill="#5a4a2a">   fight on the 3V3 rail.</text>
+  <text x="1060" y="624" font-size="10.5" fill="#5a4a2a">4. Buttons: internal</text>
+  <text x="1060" y="638" font-size="10.5" fill="#5a4a2a">   pull-ups, no extra</text>
+  <text x="1060" y="652" font-size="10.5" fill="#5a4a2a">   resistors needed.</text>
+
+  <!-- ══════ 12 V (red) ══════ -->
+  <!-- The two power trunks drop through the gap right of the TB6612 box
+       and left of the notes box (990-1045, 55px). Spaced well apart from
+       the box edge, from each other, and from the notes box - previously
+       squeezed into a 15px gap and touching everything. -->
+  <path class="w12" d="M90 160 L90 250"/>
+  <path class="w12" d="M90 200 L1012 200 L1012 566 L990 566"/>
+  <circle cx="90" cy="200" r="5" fill="#d63c30"/>
+  <text class="wlbl" x="330" y="192" fill="#d63c30">12 V</text>
+
+  <!-- ══════ 3.3 V (orange) ══════ -->
+  <path class="w33" d="M90 360 L90 390 L265 390"/>
+  <path class="w33" d="M265 390 L265 542 L300 542"/>
+  <path class="w33" d="M265 390 L265 240 L1030 240 L1030 606 L990 606"/>
+  <circle cx="265" cy="390" r="5" fill="#e08a1e"/>
+  <text class="wlbl" x="430" y="232" fill="#e08a1e">3.3 V</text>
+
+  <!-- ══════ GND (dark) ══════ -->
+  <path class="wgnd" d="M160 160 L160 250"/>
+  <path class="wgnd" d="M160 360 L160 935"/>
+  <path class="wgnd" d="M300 518 L250 518 L250 935"/>
+  <path class="wgnd" d="M680 722 L700 722 L700 935"/>
+  <path class="wgnd" d="M680 788 L690 788 L690 935"/>
+  <path class="wgnd" d="M990 790 L1190 790 L1190 935"/>
+  <path class="wgnd" d="M160 935 L1190 935"/>
+  <circle cx="250" cy="935" r="5" fill="#2f3640"/>
+  <circle cx="690" cy="935" r="5" fill="#2f3640"/>
+  <circle cx="700" cy="935" r="5" fill="#2f3640"/>
+  <circle cx="1190" cy="935" r="5" fill="#2f3640"/>
+  <text class="wlbl" x="770" y="956" fill="#2f3640">COMMON GND</text>
+
+  <!-- ══════ SIGNALS (blue) — straight across, matching rows ══════ -->
+  <!-- GPIO5  → PWMA -->
+  <path class="wsig" d="M520 566 L760 566"/>
+  <!-- GPIO6  → AIN2 -->
+  <path class="wsig" d="M520 606 L760 606"/>
+  <!-- GPIO7  → AIN1 -->
+  <path class="wsig" d="M520 646 L760 646"/>
+  <!-- GPIO10 → STBY -->
+  <path class="wsig" d="M520 686 L760 686"/>
+
+  <!-- GPIO20 → BTN UP (straight - the button sits level with the pin) -->
+  <path class="wsig" d="M520 722 L580 722"/>
+  <!-- GPIO21 → BTN DOWN (straight - the button sits level with the pin) -->
+  <path class="wsig" d="M520 788 L580 788"/>
+
+  <!-- ══════ MOTOR (green) ══════ -->
+  <!-- Polarity note lives in the notes box (item 5) - the two lines here
+       ran past the canvas edge at this width, so they moved rather than
+       shrinking to the point of being unreadable. -->
+  <path class="wmot" d="M990 686 L1050 686"/>
+  <path class="wmot" d="M990 726 L1050 726"/>
+
+  <!-- ══ LEGEND ══ -->
+  <line x1="40"  y1="965" x2="80"  y2="965" class="w12"/>
+  <text x="88"  y="969" font-size="12" fill="#3d4450">12 V</text>
+  <line x1="150" y1="965" x2="190" y2="965" class="w33"/>
+  <text x="198" y="969" font-size="12" fill="#3d4450">3.3 V</text>
+  <line x1="265" y1="965" x2="305" y2="965" class="wgnd"/>
+  <text x="313" y="969" font-size="12" fill="#3d4450">GND</text>
+  <line x1="375" y1="965" x2="415" y2="965" class="wsig"/>
+  <text x="423" y="969" font-size="12" fill="#3d4450">Signal (3.3 V logic)</text>
+  <line x1="570" y1="965" x2="610" y2="965" class="wmot"/>
+  <text x="618" y="969" font-size="12" fill="#3d4450">Motor output</text>
+  <circle cx="730" cy="965" r="5" fill="#2f3640"/>
+  <text x="742" y="969" font-size="12" fill="#3d4450">junction (wires joined)</text>
+  <text x="40" y="988" font-size="12" fill="#8a929e">Lines that cross without a dot are NOT connected.</text>
+</svg>
