@@ -35,6 +35,12 @@ it again. Take your time and read as you go.
   1. WHAT IS IN THIS DOWNLOAD
 -------------------------------------------------------------------------------
 
+  Reading this on GitHub rather than after unzipping a download? The
+  source in this repo is split into firmware/, hardware/wiring/, etc. -
+  organised for editing, not for flashing. Grab the packaged zip from
+  the Releases page instead; it has the flat layout described below,
+  ready to unzip and use as-is.
+
   roller-blind/
     |
     +-- INSTRUCTIONS.txt      <- this file
