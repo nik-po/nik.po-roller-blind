@@ -46,7 +46,7 @@ once from the physical buttons or the web interface.
 
 You'll also need a printed enclosure to hold it all together. The STL,
 photos, and an illustrated step-by-step assembly PDF are on
-**[the MakerWorld page](MAKERWORLD-LINK)** — this repo covers the
+**[the MakerWorld page](https://makerworld.com/en/models/3292116-smart-roller-blind-motor-esp32-home-assistant#profileId-3735590)** — this repo covers the
 electronics and firmware, that page covers the print and the physical
 build.
 

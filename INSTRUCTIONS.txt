@@ -546,8 +546,11 @@ it again. Take your time and read as you go.
   Building the printed enclosure? The MakerWorld page for this project
   has an illustrated Assembly Guide (PDF) showing each part going into
   the printed case step by step, photo by photo:
-  [MAKERWORLD-LINK]. Handy to have open on a second screen while you
-  solder - this section covers the same steps in words.
+
+  https://makerworld.com/en/models/3292116-smart-roller-blind-motor-esp32-home-assistant#profileId-3735590
+
+  Handy to have open on a second screen while you solder - this section
+  covers the same steps in words.
 
 
   >>> STEP 1: SET THE BUCK CONVERTER BEFORE ANYTHING ELSE <<<
