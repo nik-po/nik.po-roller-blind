@@ -35,11 +35,12 @@ it again. Take your time and read as you go.
   1. WHAT IS IN THIS DOWNLOAD
 -------------------------------------------------------------------------------
 
-  Reading this on GitHub rather than after unzipping a download? The
-  source in this repo is split into firmware/, hardware/wiring/, etc. -
-  organised for editing, not for flashing. Grab the packaged zip from
-  the Releases page instead; it has the flat layout described below,
-  ready to unzip and use as-is.
+  Don't see roller-blind.yaml, wiring-diagram.svg and www/ sitting right
+  next to this file? Then what you have is this GitHub repo's source
+  tree, not the packaged download - the same files, but split into
+  firmware/, hardware/wiring/, etc. for editing rather than flashing.
+  Go to the Releases page and grab the zip there instead; it has the
+  flat layout described below, ready to unzip and use as-is.
 
   roller-blind/
     |
@@ -541,6 +542,12 @@ it again. Take your time and read as you go.
 
   A dot means wires are joined. Lines that cross WITHOUT a dot are not
   connected.
+
+  Building the printed enclosure? The MakerWorld page for this project
+  has an illustrated Assembly Guide (PDF) showing each part going into
+  the printed case step by step, photo by photo:
+  [MAKERWORLD-LINK]. Handy to have open on a second screen while you
+  solder - this section covers the same steps in words.
 
 
   >>> STEP 1: SET THE BUCK CONVERTER BEFORE ANYTHING ELSE <<<

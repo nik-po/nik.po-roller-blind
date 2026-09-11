@@ -44,6 +44,12 @@ internet goes down.
 No encoders or limit switches — position is tracked by time, calibrated
 once from the physical buttons or the web interface.
 
+You'll also need a printed enclosure to hold it all together. The STL,
+photos, and an illustrated step-by-step assembly PDF are on
+**[the MakerWorld page](MAKERWORLD-LINK)** — this repo covers the
+electronics and firmware, that page covers the print and the physical
+build.
+
 ## Getting started
 
 Read **[`INSTRUCTIONS.txt`](INSTRUCTIONS.txt)** — it's the full build guide:
